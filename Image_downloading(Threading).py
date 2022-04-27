@@ -7,7 +7,7 @@ from selenium.common.exceptions import NoSuchElementException
 from concurrent.futures import ThreadPoolExecutor
 from time import perf_counter
 import requests
-
+import logging
 
 # Google Locators.
 GOOGLE_I_AGREE = (By.CSS_SELECTOR, '#L2AGLb')
@@ -20,6 +20,24 @@ UNSPLASH_SEARCH_BAR = (By.XPATH, '//input[@type="search"]')
 UNSPLASH_SEARCH_BUTTON = (By.XPATH, '//button[@title="Search Unsplash"]')
 UNSPLASH_IMAGES = "//img[@class='YVj9w']"
 
+
+# Setting up logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s: %(name)s: %(levelname)s: %(message)s')
+
+file_handler = logging.FileHandler('Images-Download.log')
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(formatter)
+
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(formatter)
+stream_handler.setLevel(logging.DEBUG)
+
+logger.addHandler(file_handler)
+logger.addHandler(stream_handler)
+
 # Initilizing the webdriver.
 options = Options()
 options.add_argument("--disable-notifications")
@@ -27,6 +45,7 @@ options.add_argument("--disable-extensions")
 # options.add_argument("--headless")
 options.add_argument("--incognito")
 driver = webdriver.Chrome(options=options)
+logger.info('Webdriver set up and initialized.')
 
 # Setting explicit waits.
 wait10 = WebDriverWait(driver, 10)
@@ -39,7 +58,7 @@ driver.get("https://www.google.com/")
 try:
     wait10.until(ec.element_to_be_clickable(GOOGLE_I_AGREE)).click()
 except NoSuchElementException:
-    print("Cookies agreement pop up didn't show")
+    logger.info("Cookies agreement pop up didn't show")
 wait10.until(ec.presence_of_element_located(GOOGLE_SEARCH_BAR)).send_keys('unsplash')
 wait5.until(ec.element_to_be_clickable(GOOGLE_SEARCH_BUTTON)).click()
 wait10.until(ec.element_to_be_clickable(GOOGLE_UNSPLASH_LINK)).click()
@@ -60,6 +79,7 @@ with open('ImageFilteredURLs.txt', 'w+') as f:
 # Reading from the created file to create a list of the image URLs.
 with open('ImageFilteredURLs.txt', 'r+') as f:
     img_urls = [line.strip('\n') for line in f]
+logger.info('List of image URLs created.')
 
 # Set the start time.
 t1 = perf_counter()
@@ -73,7 +93,7 @@ def download_img(img_url: str):
     if img_name[:5] == 'photo':
         with open(f'Pictures\Downloaded\{img_name}', 'wb') as image:
             image.write(img_bytes)
-            print(f'"{img_name}" is now downloaded!')
+            logger.debug(f'"{img_name}" is now downloaded!')
 
 # Using threading to download the pictures more efficiently.
 with ThreadPoolExecutor() as executor:
@@ -84,7 +104,8 @@ t2 = perf_counter()
 
 # Printing the elapsed time.
 elapsed_time = round(t2 - t1, 2)
-print(f'Images took {elapsed_time} sec(s) to finish downloading')
+logger.info(f'Images took {elapsed_time} sec(s) to finish downloading by threading.')
 
 # Tearing down the webdriver.
 driver.quit()
+logger.info('Webdriver tore down')
